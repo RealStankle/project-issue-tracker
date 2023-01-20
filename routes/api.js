@@ -22,7 +22,7 @@ module.exports = function (app) {
         }
 
         if (key === '_id') {
-          value = mongoose.Types.ObjectId(value);
+          value = new mongoose.Types.ObjectId(value);
         }
 
         return {
@@ -82,28 +82,31 @@ module.exports = function (app) {
           .json({ error: 'no update field(s) sent', _id: req.body._id });
       }
 
-      const setObj = Object.entries(req.body).reduce((object, [key, value]) => {
-        if (key === 'open' && /^(true|false)$/.test(value)) {
-          value = eval(value);
-        }
+      const setObj = Object.entries(req.body).reduce(
+        (object, [key, value]) => {
+          if (key === 'open' && /^(true|false)$/.test(value)) {
+            value = eval(value);
+          }
 
-        if (key === '_id') {
-          return { ...object };
-        }
+          if (key === '_id') {
+            return { ...object };
+          }
 
-        return {
-          ...object,
-          [`issues.$.${key}`]: value,
-        };
-      }, {});
+          return {
+            ...object,
+            [`issues.$.${key}`]: value,
+          };
+        },
+        { 'issues.$.updated_on': new Date() }
+      );
 
       try {
-        const updatedIssue = await Project.findOneAndUpdate(
+        const updatedProject = await Project.findOneAndUpdate(
           { name: project, 'issues._id': req.body._id },
-          { $set: { ...setObj, updated_on: new Date() } }
+          { $set: { ...setObj } }
         );
 
-        if (!updatedIssue) {
+        if (!updatedProject) {
           throw new Error();
         }
 
@@ -123,12 +126,16 @@ module.exports = function (app) {
       }
 
       try {
-        const deletedIssue = await Project.findOneAndUpdate(
-          { name: project },
-          { $pull: { issues: { _id: req.body._id } } }
+        const updatedProject = await Project.findOneAndUpdate(
+          { name: project, 'issues._id': req.body._id },
+          {
+            $pull: {
+              issues: { _id: new mongoose.Types.ObjectId(req.body._id) },
+            },
+          }
         );
 
-        if (!deletedIssue) {
+        if (!updatedProject) {
           throw new Error();
         }
 
