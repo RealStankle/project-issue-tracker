@@ -53,7 +53,7 @@ module.exports = function (app) {
       const { issue_title, issue_text, created_by } = req.body;
 
       if (!issue_title || !issue_text || !created_by) {
-        return res.status(500).json({ error: 'required field(s) missing' });
+        return res.status(200).json({ error: 'required field(s) missing' });
       }
 
       const { issues } = await Project.findOneAndUpdate(
@@ -73,12 +73,12 @@ module.exports = function (app) {
       let project = req.params.project;
 
       if (!req.body.hasOwnProperty('_id')) {
-        return res.status(400).json({ error: 'missing _id' });
+        return res.status(200).json({ error: 'missing _id' });
       }
 
       if (Object.keys(req.body).length == 1) {
         return res
-          .status(400)
+          .status(200)
           .json({ error: 'no update field(s) sent', _id: req.body._id });
       }
 
@@ -114,7 +114,7 @@ module.exports = function (app) {
           .status(200)
           .json({ result: 'successfully updated', _id: req.body._id });
       } catch {
-        res.status(400).json({ error: 'could not update', _id: req.body._id });
+        res.status(200).json({ error: 'could not update', _id: req.body._id });
       }
     })
 
@@ -122,7 +122,7 @@ module.exports = function (app) {
       let project = req.params.project;
 
       if (!req.body.hasOwnProperty('_id')) {
-        return res.status('400').json({ error: 'missing _id' });
+        return res.status(200).json({ error: 'missing _id' });
       }
 
       try {
@@ -140,12 +140,10 @@ module.exports = function (app) {
         }
 
         res
-          .status('200')
+          .status(200)
           .json({ result: 'successfully deleted', _id: req.body._id });
       } catch {
-        res
-          .status('400')
-          .json({ error: 'could not delete', _id: req.body._id });
+        res.status(200).json({ error: 'could not delete', _id: req.body._id });
       }
     });
 };

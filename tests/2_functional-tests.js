@@ -63,7 +63,7 @@ suite('Functional Tests', function () {
       .post('/api/issues/test-project')
       .send(issue);
 
-    assert.strictEqual(response.status, 500);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, { error: 'required field(s) missing' });
   });
 
@@ -174,7 +174,7 @@ suite('Functional Tests', function () {
         open: false,
       });
 
-    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, { error: 'missing _id' });
   });
 
@@ -186,7 +186,7 @@ suite('Functional Tests', function () {
         _id: issueId1,
       });
 
-    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, {
       error: 'no update field(s) sent',
       _id: issueId1,
@@ -204,7 +204,7 @@ suite('Functional Tests', function () {
         issue_title: 'modified title with wrong id',
       });
 
-    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, {
       error: 'could not update',
       _id: invalidId,
@@ -235,7 +235,7 @@ suite('Functional Tests', function () {
         _id: invalidId,
       });
 
-    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, {
       error: 'could not delete',
       _id: invalidId,
@@ -247,7 +247,7 @@ suite('Functional Tests', function () {
       .request(server)
       .delete('/api/issues/test-project');
 
-    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, { error: 'missing _id' });
   });
 });
