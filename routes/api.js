@@ -1,27 +1,144 @@
 'use strict';
 
-module.exports = function (app) {
+const mongoose = require('mongoose');
+const Project = require('../models/project.model');
 
-  app.route('/api/issues/:project')
-  
-    .get(function (req, res){
+module.exports = function (app) {
+  mongoose.connect(process.env.MONGODB_URI, { dbName: process.env.DB_NAME });
+
+  app
+    .route('/api/issues/:project')
+
+    .get(async function (req, res) {
       let project = req.params.project;
-      
+
+      const conditions = Object.entries(req.query).map(([key, value]) => {
+        if (key === 'open' && /^(true|false)$/.test(value)) {
+          value = eval(value);
+        }
+
+        if (key === 'created_on' || key === 'updated_on') {
+          value = new Date(value);
+        }
+
+        if (key === '_id') {
+          value = mongoose.Types.ObjectId(value);
+        }
+
+        return {
+          $eq: [`$$issue.${key}`, value],
+        };
+      });
+
+      const result = await Project.aggregate([
+        { $match: { name: project } },
+        {
+          $project: {
+            items: {
+              $filter: {
+                input: '$issues',
+                as: 'issue',
+                cond: { $and: conditions },
+              },
+            },
+          },
+        },
+      ]);
+
+      res.status(200).json(result[0].items);
     })
-    
-    .post(function (req, res){
-      let project = req.params.project;
-      
+
+    .post(async function (req, res) {
+      const project = req.params.project;
+      const { issue_title, issue_text, created_by } = req.body;
+
+      if (!issue_title || !issue_text || !created_by) {
+        return res.status(500).json({ error: 'required field(s) missing' });
+      }
+
+      const { issues } = await Project.findOneAndUpdate(
+        { name: project },
+        {
+          $push: {
+            issues: { ...req.body },
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+
+      res.status(201).json(issues[issues.length - 1]);
     })
-    
-    .put(function (req, res){
+
+    .put(async function (req, res) {
       let project = req.params.project;
-      
+
+      if (!req.body.hasOwnProperty('_id')) {
+        return res.status(400).json({ error: 'missing _id' });
+      }
+
+      if (Object.keys(req.body).length == 1) {
+        return res
+          .status(400)
+          .json({ error: 'no update field(s) sent', _id: req.body._id });
+      }
+
+      const setObj = Object.entries(req.body).reduce((object, [key, value]) => {
+        if (key === 'open' && /^(true|false)$/.test(value)) {
+          value = eval(value);
+        }
+
+        if (key === '_id') {
+          return { ...object };
+        }
+
+        return {
+          ...object,
+          [`issues.$.${key}`]: value,
+        };
+      }, {});
+
+      try {
+        const updatedIssue = await Project.findOneAndUpdate(
+          { name: project, 'issues._id': req.body._id },
+          { $set: { ...setObj, updated_on: new Date() } }
+        );
+
+        if (!updatedIssue) {
+          throw new Error();
+        }
+
+        res
+          .status(200)
+          .json({ result: 'successfully updated', _id: req.body._id });
+      } catch {
+        res.status(400).json({ error: 'could not update', _id: req.body._id });
+      }
     })
-    
-    .delete(function (req, res){
+
+    .delete(async function (req, res) {
       let project = req.params.project;
-      
+
+      if (!req.body.hasOwnProperty('_id')) {
+        return res.status('400').json({ error: 'missing _id' });
+      }
+
+      try {
+        const deletedIssue = await Project.findOneAndUpdate(
+          { name: project },
+          { $pull: { issues: { _id: req.body._id } } }
+        );
+
+        if (!deletedIssue) {
+          throw new Error();
+        }
+
+        res
+          .status('200')
+          .json({ result: 'successfully deleted', _id: req.body._id });
+      } catch {
+        res
+          .status('400')
+          .json({ error: 'could not delete', _id: req.body._id });
+      }
     });
-    
 };
