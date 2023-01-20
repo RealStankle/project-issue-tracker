@@ -47,6 +47,7 @@ suite('Functional Tests', function () {
 
     assert.strictEqual(response.status, 201);
     assert.include(response.body, issue);
+    assert.include(response.body, { assigned_to: '', status_text: '' });
     assert.property(response.body, 'open');
     assert.property(response.body, 'created_on');
     assert.property(response.body, 'updated_on');
@@ -72,96 +73,91 @@ suite('Functional Tests', function () {
 
     assert.strictEqual(response.status, 200);
     assert.typeOf(response.body, 'array');
-    assert.hasAllKeys(response.body[0], [
-      '_id',
-      'issue_title',
-      'issue_text',
-      'created_on',
-      'updated_on',
-      'created_by',
-      'assigned_to',
-      'open',
-      'status_text',
-    ]);
   });
 
   test('GET /api/issues/{project}, with one filter', async () => {
+    const query = { issue_title: 'test title' };
+
     const response = await chai
       .request(server)
       .get('/api/issues/test-project')
-      .query({ issue_title: 'test title' });
+      .query(query);
 
     assert.strictEqual(response.status, 200);
     assert.typeOf(response.body, 'array');
-    assert.hasAllKeys(response.body[0], [
-      '_id',
-      'issue_title',
-      'issue_text',
-      'created_on',
-      'updated_on',
-      'created_by',
-      'assigned_to',
-      'open',
-      'status_text',
-    ]);
+    assert.include(response.body[0], query);
   });
 
   test('GET /api/issues/{project}, with multiple filters', async () => {
+    const query = {
+      issue_title: 'another test title',
+      created_by: 'another tester',
+    };
+
     const response = await chai
       .request(server)
       .get('/api/issues/test-project')
-      .query({
-        issue_title: 'another test title',
-        created_by: 'another tester',
-      });
+      .query(query);
 
     assert.strictEqual(response.status, 200);
     assert.typeOf(response.body, 'array');
-    assert.hasAllKeys(response.body[0], [
-      '_id',
-      'issue_title',
-      'issue_text',
-      'created_on',
-      'updated_on',
-      'created_by',
-      'assigned_to',
-      'open',
-      'status_text',
-    ]);
+    assert.include(response.body[0], query);
   });
 
   test('PUT /api/issues/{projectname}, with one field', async () => {
+    const updateObject = {
+      _id: issueId1,
+      issue_title: 'modified test title',
+    };
+
     const response = await chai
       .request(server)
       .put('/api/issues/test-project')
-      .send({
-        _id: issueId1,
-        issue_title: 'modified test title',
-      });
+      .send(updateObject);
 
     assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, {
       result: 'successfully updated',
       _id: issueId1,
     });
+
+    const {
+      body: [updatedIssue],
+    } = await chai
+      .request(server)
+      .get('/api/issues/test-project')
+      .query(updateObject);
+
+    assert.include(updatedIssue, updateObject);
   });
 
   test('PUT /api/issues/{projectname}, with multiple fields', async () => {
+    const updateObject = {
+      _id: issueId2,
+      issue_title: 'modified test title',
+      issue_text: 'modified test text',
+      open: false,
+    };
+
     const response = await chai
       .request(server)
       .put('/api/issues/test-project')
-      .send({
-        _id: issueId2,
-        issue_title: 'modified test title',
-        issue_text: 'modified test text',
-        open: false,
-      });
+      .send(updateObject);
 
     assert.strictEqual(response.status, 200);
     assert.deepEqual(response.body, {
       result: 'successfully updated',
       _id: issueId2,
     });
+
+    const {
+      body: [updatedIssue],
+    } = await chai
+      .request(server)
+      .get('/api/issues/test-project')
+      .query(updateObject);
+
+    assert.include(updatedIssue, updateObject);
   });
 
   test('PUT /api/issues/{projectname}, with missing _id', async () => {
@@ -224,6 +220,13 @@ suite('Functional Tests', function () {
       result: 'successfully deleted',
       _id: issueId1,
     });
+
+    const { body } = await chai
+      .request(server)
+      .get('/api/issues/test-project')
+      .query({ _id: issueId1 });
+
+    assert.isEmpty(body);
   });
 
   test('DELETE /api/issues/{project}, with an invalid _id', async () => {
